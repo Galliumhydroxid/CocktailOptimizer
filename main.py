@@ -16,10 +16,16 @@ from autograd import grad    # Import grad from autograd
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 
 # The ID and range of a sample spreadsheet.
-SPREADSHEET_ID = "FIXME"
+SPREADSHEET_ID = "1Dbkm9I2q6qdkkwfX28ucVoSaZGCg3sQQgVfChP7raac"
 ERROR_RANGE = "Kosten!Q65"
 INPUT_RANGE1 = "Cocktailabend!A11:A17"
 INPUT_RANGE2 = "Cocktailabend!F11:F17"
+current_column=41
+def build_res_block():
+    global current_column
+    current_column = current_column + 1
+    return f"Cocktailabend!B{current_column}"
+
 INIT_VALUES1 = np.array([
     [1.0],
     [1.5],
@@ -40,7 +46,7 @@ INIT_VALUES2 = np.array([
 ])
 sheet: Resource = None
 learning_rate = 0.005
-num_iterations = 20
+num_iterations = 10
 logging.basicConfig(level=logging.INFO)
 
 import time
@@ -76,6 +82,33 @@ def main():
     for i in range(num_iterations):
         loop(i)
 
+def put_result(res):
+    body = {
+      'values': str(res)
+    }
+
+    # Use the update method to update the cells
+    result = sheet.values().update(
+      spreadsheetId=SPREADSHEET_ID,
+      range=build_res_block(),
+      valueInputOption='USER_ENTERED',  # Use 'RAW' to input data as-is or 'USER_ENTERED' for Google Sheets to interpret data
+      body=body
+    ).execute()
+    print(f"Published result: {res}")
+
+
+def save_progress(input1, input2):
+    state1 = get_inputs(INPUT_RANGE1)
+    state2 = get_inputs(INPUT_RANGE2)
+    put_inputs(input1, INPUT_RANGE1)
+    put_inputs(input2, INPUT_RANGE2)
+    result = get_error()
+    put_inputs(state1, INPUT_RANGE1)
+    put_inputs(state2, INPUT_RANGE2)
+    put_result(result)
+
+
+
 
 @rate_limiter(max_calls=300, period=30)
 def loop(i):
@@ -90,6 +123,7 @@ def loop(i):
     x2 = x2 - learning_rate * gradient2
     put_inputs(x1, INPUT_RANGE1)
     put_inputs(x2, INPUT_RANGE2)
+    #save_progress(x1, x2)
 
     if i % 1 == 0:  # Print the value of x and the function every 100 iterations
         logging.warning(f"Iteration {i} with inputs {x1} and {x2}")
@@ -146,18 +180,22 @@ def get_inputs(rang) -> np.ndarray:
     return result.get("values")
 
 
+def get_error():
+    result = (
+        sheet.values()
+        .get(spreadsheetId=SPREADSHEET_ID, range=ERROR_RANGE)
+        .execute()
+    )
+    return result.get("values")[0][0]
+
+
 def calculate_error(input: np.ndarray, rang, keep_state_change=False) -> float:
     print("Saving state...")
     prev_state = get_inputs(rang)
     print(f"Got state:\n{prev_state}")
     put_inputs(input, rang)
 
-    result = (
-        sheet.values()
-        .get(spreadsheetId=SPREADSHEET_ID, range=ERROR_RANGE)
-        .execute()
-    )
-    values = result.get("values")[0][0]
+    values = get_error()
     print(f"Got result: {values}")
     if not keep_state_change:
         print("Restoring state...")
