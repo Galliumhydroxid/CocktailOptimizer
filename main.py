@@ -16,7 +16,7 @@ from autograd import grad    # Import grad from autograd
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 
 # The ID and range of a sample spreadsheet.
-SPREADSHEET_ID = "1Dbkm9I2q6qdkkwfX28ucVoSaZGCg3sQQgVfChP7raac"
+SPREADSHEET_ID = ""
 ERROR_RANGE = "Kosten!Q65"
 INPUT_RANGE1 = "Cocktailabend!A11:A17"
 INPUT_RANGE2 = "Cocktailabend!F11:F17"
